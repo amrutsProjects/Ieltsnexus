@@ -2,9 +2,12 @@ import { useState, useEffect } from 'react';
 import { Card } from './Card';
 import { X, ChevronRight, Mic, Play, Pause } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { ReviewChoiceModal } from './ReviewChoiceModal';
 
 interface ExamSimulationProps {
   onEndExam: () => void;
+  userTier?: 'free' | 'premium';
+  availableCredits?: number;
 }
 
 type ExamPhase = 'listening' | 'reading' | 'writing' | 'speaking';
@@ -22,12 +25,13 @@ const speakingQuestions = [
   "Do you prefer eating at home or in restaurants?",
 ];
 
-export function ExamSimulation({ onEndExam }: ExamSimulationProps) {
+export function ExamSimulation({ onEndExam, userTier = 'free', availableCredits = 0 }: ExamSimulationProps) {
   const [currentPhase, setCurrentPhase] = useState<ExamPhase>('listening');
   const [currentQuestion, setCurrentQuestion] = useState(1);
   const [timeLeft, setTimeLeft] = useState(3600); // 60 minutes
   const [showEndModal, setShowEndModal] = useState(false);
   const [showSkipModal, setShowSkipModal] = useState(false);
+  const [showReviewModal, setShowReviewModal] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
   const [speakingQuestionIndex, setSpeakingQuestionIndex] = useState(0);
@@ -80,6 +84,17 @@ export function ExamSimulation({ onEndExam }: ExamSimulationProps) {
 
   const handleEndExam = () => {
     setShowEndModal(false);
+    setShowReviewModal(true);
+  };
+
+  const handleAIReview = () => {
+    setShowReviewModal(false);
+    onEndExam();
+  };
+
+  const handleHumanReview = () => {
+    setShowReviewModal(false);
+    alert('Submitted for Human Verification! You will receive results in 24-48 hours.');
     onEndExam();
   };
 
@@ -602,6 +617,19 @@ export function ExamSimulation({ onEndExam }: ExamSimulationProps) {
             </div>
           </Card>
         </div>
+      )}
+
+      {/* Review Choice Modal */}
+      {showReviewModal && (
+        <ReviewChoiceModal
+          onClose={() => setShowReviewModal(false)}
+          onSelectAI={handleAIReview}
+          onSelectHuman={handleHumanReview}
+          creditsRequired={4}
+          availableCredits={availableCredits}
+          userTier={userTier}
+          type="exam"
+        />
       )}
     </div>
   );

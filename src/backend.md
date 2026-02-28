@@ -55,6 +55,7 @@ This document serves as a guide for implementing the backend APIs when moving fr
   },
   "testsRemaining": 15,
   "humanVerificationsRemaining": 3,
+  "verificationCredits": 5,
   "streak": 12
 }
 ```
@@ -321,7 +322,7 @@ duration: 45 (seconds)
       "price": 0,
       "features": {
         "aiTests": 3,
-        "humanVerifications": 0,
+        "verificationCredits": 0,
         "fullExams": 1
       }
     },
@@ -331,7 +332,7 @@ duration: 45 (seconds)
       "price": 29,
       "features": {
         "aiTests": 20,
-        "humanVerifications": 5,
+        "verificationCredits": 5,
         "fullExams": "unlimited"
       }
     }
@@ -346,6 +347,105 @@ duration: 45 (seconds)
 {
   "planId": "premium",
   "paymentMethodId": "stripe-pm-id"
+}
+```
+
+### POST /api/credits/purchase
+**Purpose**: Purchase additional verification credits (à la carte)  
+**Request Body**:
+```json
+{
+  "quantity": 3,
+  "paymentMethodId": "stripe-pm-id"
+}
+```
+**Response**:
+```json
+{
+  "orderId": "uuid",
+  "creditsPurchased": 3,
+  "totalCost": 29.97,
+  "newCreditBalance": 8
+}
+```
+
+### GET /api/credits/balance
+**Purpose**: Get current credit balance  
+**Response**:
+```json
+{
+  "verificationCredits": 5,
+  "tier": "premium",
+  "monthlyAllocation": 5,
+  "nextRefreshDate": "2025-03-01"
+}
+```
+
+---
+
+## 7a. Review Choice Workflow
+
+### POST /api/review/choice
+**Purpose**: Record user's review choice after submission  
+**Request Body**:
+```json
+{
+  "submissionId": "uuid",
+  "submissionType": "exam" | "writing" | "speaking",
+  "reviewType": "ai" | "human",
+  "creditsRequired": 4 | 1
+}
+```
+**Response** (AI Review):
+```json
+{
+  "reviewId": "uuid",
+  "reviewType": "ai",
+  "status": "completed",
+  "creditsUsed": 0,
+  "feedback": {
+    // AI-generated feedback
+  }
+}
+```
+**Response** (Human Review):
+```json
+{
+  "reviewId": "uuid",
+  "reviewType": "human",
+  "status": "pending",
+  "creditsUsed": 1,
+  "creditsRemaining": 4,
+  "estimatedCompletion": "24-48 hours",
+  "verificationId": "uuid"
+}
+```
+
+### GET /api/review/:reviewId
+**Purpose**: Fetch review details and status  
+**Response**:
+```json
+{
+  "reviewId": "uuid",
+  "reviewType": "human",
+  "status": "completed" | "pending" | "in-progress",
+  "submissionType": "writing",
+  "creditsUsed": 1,
+  "completedAt": "2025-03-01T14:30:00Z",
+  "humanScore": 7.0,
+  "aiScore": 7.5,
+  "examinerFeedback": {
+    "overallBand": 7.0,
+    "criteria": {
+      "taskAchievement": { score: 7.0, feedback: "..." },
+      "coherenceCohesion": { score: 7.0, feedback: "..." },
+      "lexicalResource": { score: 7.5, feedback: "..." },
+      "grammaticalAccuracy": { score: 7.0, feedback: "..." }
+    },
+    "strengths": ["...", "..."],
+    "improvements": ["...", "..."],
+    "examinerNotes": "Overall strong essay with good vocabulary range..."
+  }
 }
 ```
 

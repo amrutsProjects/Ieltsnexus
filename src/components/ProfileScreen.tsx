@@ -21,6 +21,12 @@ interface SavedPost {
   author: string;
 }
 
+interface ProfileScreenProps {
+  userTier?: 'free' | 'premium';
+  availableCredits?: number;
+  onNavigateToWeaknessFix?: (weaknessId: string) => void;
+}
+
 const weaknesses: Weakness[] = [
   { id: '1', title: 'Subject-Verb Agreement', category: 'Grammar' },
   { id: '2', title: 'Pronunciation: "Th" Sound', category: 'Speaking' },
@@ -37,8 +43,8 @@ const savedPosts: SavedPost[] = [
   { id: '6', type: 'Writing', title: 'Education Systems', band: '8.0', author: 'Lisa K.' },
 ];
 
-export function ProfileScreen() {
-  const [selectedPlan, setSelectedPlan] = useState<PlanType>('premium');
+export function ProfileScreen({ userTier, availableCredits, onNavigateToWeaknessFix }: ProfileScreenProps) {
+  const [selectedPlan, setSelectedPlan] = useState<PlanType>(userTier || 'premium');
   const [activeTab, setActiveTab] = useState<TabType>('stats');
 
   return (
@@ -219,7 +225,9 @@ export function ProfileScreen() {
                         </div>
 
                         {!isLocked && (
-                          <button className="w-full bg-[#F43F5E] hover:bg-[#E11D48] text-white text-xs font-semibold py-2 px-3 rounded-lg transition-colors">
+                          <button className="w-full bg-[#F43F5E] hover:bg-[#E11D48] text-white text-xs font-semibold py-2 px-3 rounded-lg transition-colors"
+                            onClick={() => onNavigateToWeaknessFix?.(weakness.id)}
+                          >
                             Fix This Now
                           </button>
                         )}
@@ -362,7 +370,7 @@ export function ProfileScreen() {
                 {/* Credits Balance */}
                 <div className="bg-gradient-to-r from-[#FFF1F2] to-[#FCE7F3] rounded-2xl p-4">
                   <div className="text-sm text-gray-600 mb-1">Available Credits</div>
-                  <div className="text-4xl font-bold text-[#F43F5E]">2</div>
+                  <div className="text-4xl font-bold text-[#F43F5E]">{availableCredits || 2}</div>
                 </div>
 
                 {/* Pricing */}

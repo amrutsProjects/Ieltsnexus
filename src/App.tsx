@@ -17,7 +17,8 @@ type ModuleType = 'writing' | 'speaking' | null;
 export default function App() {
   const [activeScreen, setActiveScreen] = useState<Screen>('home');
   const [selectedModule, setSelectedModule] = useState<ModuleType>(null);
-  const [userTier, setUserTier] = useState<'free' | 'premium'>('free');
+  const [userTier, setUserTier] = useState<'free' | 'premium'>('premium');
+  const [availableCredits, setAvailableCredits] = useState(5); // Premium users get 5 credits
   const [selectedPostId, setSelectedPostId] = useState<string | null>(null);
 
   const handleNavigate = (screen: string) => {
@@ -96,23 +97,23 @@ export default function App() {
         case 'topicSelection':
           return <TopicSelection onSelectTopic={handleTopicSelect} />;
         case 'practice':
-          return <WritingModule />;
+          return <WritingModule userTier={userTier} availableCredits={availableCredits} />;
         case 'speaking':
-          return <SpeakingSimulation />;
+          return <SpeakingSimulation userTier={userTier} availableCredits={availableCredits} />;
         case 'community':
           return <CommunityScreen onViewPost={handleViewPost} />;
         case 'profile':
-          return <ProfileScreen />;
+          return <ProfileScreen userTier={userTier} availableCredits={availableCredits} onNavigateToWeaknessFix={(weaknessId) => setActiveScreen('grammarPractice')} />;
         case 'simulationResults':
           return <SimulationResults userTier={userTier} onGoHome={() => setActiveScreen('home')} />;
         case 'postDetail':
           return <CommunityPostDetail onBack={handleBackFromPost} onTryTest={handleTryTestFromPost} />;
         case 'examSimulation':
-          return <ExamSimulation onEndExam={handleEndExam} />;
+          return <ExamSimulation onEndExam={handleEndExam} userTier={userTier} availableCredits={availableCredits} />;
         case 'grammarPractice':
           return <GrammarPractice onComplete={() => setActiveScreen('home')} />;
         default:
-          return <HomeScreen onStartSimulation={handleStartSimulation} />;
+          return <HomeScreen onStartSimulation={handleStartSimulation} onStartPractice={(type) => setActiveScreen('grammarPractice')} />;
       }
     } catch (error) {
       console.error('Error rendering screen:', error);
