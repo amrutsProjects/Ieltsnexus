@@ -34,13 +34,14 @@ export function WritingModule({ userTier = 'free', availableCredits = 0 }: Writi
   const handleTextChange = (e: React.ChangeEvent<HTMLTextAreaElement>, taskNum: 1 | 2) => {
     const text = e.target.value;
     const words = text.trim().split(/\s+/).filter(word => word.length > 0);
+    const count = text.trim() === '' ? 0 : words.length;
     
     if (taskNum === 1) {
       setTask1Text(text);
-      setTask1WordCount(words.length);
+      setTask1WordCount(count);
     } else {
       setTask2Text(text);
-      setTask2WordCount(words.length);
+      setTask2WordCount(count);
     }
   };
 
@@ -361,17 +362,17 @@ In conclusion, both individuals and governments have important roles to play in 
           <button
             onClick={handleSubmit}
             disabled={!canSubmit}
-            className={`w-full py-4 rounded-2xl font-bold text-white shadow-lg transition-all ${
+            className={`w-full py-4 rounded-2xl font-bold text-white shadow-lg transition-all text-sm ${
               canSubmit
                 ? 'bg-[#F43F5E] hover:bg-[#E11D48]'
                 : 'bg-gray-400 cursor-not-allowed'
             }`}
           >
-            {canSubmit ? 'Submit for Review' : 'Complete Both Tasks to Submit'}
+            {canSubmit ? 'Submit for Review' : 'Complete Tasks to Submit'}
           </button>
           {!canSubmit && (
             <p className="text-center text-xs text-gray-600 mt-2">
-              Task 1: {task1WordCount >= 150 ? '✓' : '✗'} 150+ words • Task 2: {task2WordCount >= 250 ? '✓' : '✗'} 250+ words
+              Task 1: {task1WordCount >= 150 ? '✓' : '✗'} 150+ • Task 2: {task2WordCount >= 250 ? '✓' : '✗'} 250+
             </p>
           )}
         </div>

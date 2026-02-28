@@ -26,7 +26,8 @@ export function SpeakingSimulation({ userTier = 'free', availableCredits = 0 }: 
   const [currentQuestion, setCurrentQuestion] = useState(0);
   const [answeredQuestions, setAnsweredQuestions] = useState<number[]>([]);
   const [showReviewModal, setShowReviewModal] = useState(false);
-  const [showAnalysis, setShowAnalysis] = useState(true);
+  const [showAnalysis, setShowAnalysis] = useState(false);
+  const [testCompleted, setTestCompleted] = useState(false);
 
   const handleStopRecording = () => {
     setIsRecording(false);
@@ -54,11 +55,13 @@ export function SpeakingSimulation({ userTier = 'free', availableCredits = 0 }: 
 
   const handleAIReview = () => {
     setShowReviewModal(false);
-    alert('AI Review: Your speaking performance has been analyzed! Check the analysis cards below.');
+    setShowAnalysis(true);
+    setTestCompleted(true);
   };
 
   const handleHumanReview = () => {
     setShowReviewModal(false);
+    setTestCompleted(true);
     alert('Submitted for Human Verification! You will receive results in 24-48 hours.');
   };
 

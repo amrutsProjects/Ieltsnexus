@@ -8,14 +8,18 @@ This document serves as a guide for implementing the backend APIs when moving fr
 ## 1. Authentication & User Management
 
 ### POST /api/auth/register
-**Purpose**: Create new user account  
+**Purpose**: Create new user account with comprehensive onboarding data  
 **Request Body**:
 ```json
 {
   "email": "user@example.com",
   "password": "hashedPassword",
   "name": "Alex Johnson",
-  "targetBand": 8.0
+  "goalScore": 7.5,
+  "examReason": "university" | "job" | "immigration" | "professional",
+  "weaknesses": ["Grammar & Sentence Structure", "Speaking Fluency"],
+  "currentLevel": "beginner" | "intermediate" | "advanced",
+  "targetDate": "2026-06-15"
 }
 ```
 **Response**:
@@ -23,7 +27,17 @@ This document serves as a guide for implementing the backend APIs when moving fr
 {
   "userId": "uuid",
   "accessToken": "jwt-token",
-  "refreshToken": "refresh-token"
+  "refreshToken": "refresh-token",
+  "profile": {
+    "name": "Alex Johnson",
+    "email": "user@example.com",
+    "tier": "free",
+    "goalScore": 7.5,
+    "examReason": "university",
+    "weaknesses": ["Grammar & Sentence Structure", "Speaking Fluency"],
+    "currentLevel": "intermediate",
+    "targetDate": "2026-06-15"
+  }
 }
 ```
 

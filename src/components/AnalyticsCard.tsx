@@ -40,8 +40,8 @@ export function AnalyticsCard({ currentScores, targetScores }: AnalyticsCardProp
         <h3 className="font-bold text-lg text-gray-900">Your Progress</h3>
         
         {/* Radar Chart */}
-        <div className="h-64 -mx-2 w-full">
-          <ResponsiveContainer width="100%" height="100%" minHeight={256}>
+        <div className="h-64 -mx-2 w-full" style={{ minHeight: '256px' }}>
+          <ResponsiveContainer width="100%" height="100%">
             <RadarChart data={radarData}>
               <PolarGrid stroke="#E5E7EB" />
               <PolarAngleAxis 
@@ -91,8 +91,8 @@ export function AnalyticsCard({ currentScores, targetScores }: AnalyticsCardProp
             <span className="text-sm font-semibold text-gray-700">Projected Score</span>
             <span className="text-2xl font-bold text-[#4F46E5]">7.5</span>
           </div>
-          <div className="h-16 w-full">
-            <ResponsiveContainer width="100%" height="100%" minHeight={64}>
+          <div className="h-16 w-full" style={{ minHeight: '64px' }}>
+            <ResponsiveContainer width="100%" height="100%">
               <LineChart data={sparklineData}>
                 <Line 
                   type="monotone" 

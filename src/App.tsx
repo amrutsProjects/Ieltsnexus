@@ -10,16 +10,24 @@ import { CommunityPostDetail } from './components/CommunityPostDetail';
 import { ExamSimulation } from './components/ExamSimulation';
 import { GrammarPractice } from './components/GrammarPractice';
 import { BottomNav } from './components/BottomNav';
+import { AuthScreen, UserProfile } from './components/AuthScreen';
 
 type Screen = 'home' | 'practice' | 'speaking' | 'community' | 'profile' | 'topicSelection' | 'simulationResults' | 'postDetail' | 'examSimulation' | 'grammarPractice';
 type ModuleType = 'writing' | 'speaking' | null;
 
 export default function App() {
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [activeScreen, setActiveScreen] = useState<Screen>('home');
   const [selectedModule, setSelectedModule] = useState<ModuleType>(null);
   const [userTier, setUserTier] = useState<'free' | 'premium'>('premium');
   const [availableCredits, setAvailableCredits] = useState(5); // Premium users get 5 credits
   const [selectedPostId, setSelectedPostId] = useState<string | null>(null);
+
+  const handleAuthComplete = (userData: UserProfile) => {
+    setUserProfile(userData);
+    setIsAuthenticated(true);
+  };
 
   const handleNavigate = (screen: string) => {
     // Intercept practice and speaking navigation to show topic selection first
@@ -136,17 +144,23 @@ export default function App() {
           minHeight: '100vh'
         }}
       >
-        {/* Screen Content */}
-        <div className="relative z-10">
-          {renderScreen()}
-        </div>
+        {!isAuthenticated ? (
+          <AuthScreen onAuthComplete={handleAuthComplete} />
+        ) : (
+          <>
+            {/* Screen Content */}
+            <div className="relative z-10">
+              {renderScreen()}
+            </div>
 
-        {/* Bottom Navigation */}
-        {!shouldHideBottomNav && (
-          <BottomNav 
-            activeScreen={getActiveNavScreen()} 
-            onNavigate={handleNavigate} 
-          />
+            {/* Bottom Navigation */}
+            {!shouldHideBottomNav && (
+              <BottomNav 
+                activeScreen={getActiveNavScreen()} 
+                onNavigate={handleNavigate} 
+              />
+            )}
+          </>
         )}
       </div>
 
