@@ -140,7 +140,7 @@ export function AuthScreen({ onAuthComplete }: AuthScreenProps) {
               transition={{ delay: 0.4 }}
               className="text-4xl font-bold text-white mb-3"
             >
-              IELTS Nexus
+              Star IELTS
             </motion.h1>
             
             <motion.p
