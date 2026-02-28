@@ -15,7 +15,11 @@ interface CommunityPost {
   comments: number;
 }
 
-export function CommunityScreen() {
+interface CommunityScreenProps {
+  onViewPost?: (postId: string) => void;
+}
+
+export function CommunityScreen({ onViewPost }: CommunityScreenProps) {
   const filters = [
     { id: 'trending', label: 'Trending', active: true, style: '' },
     { id: 'band8', label: 'Band 8+ Only', active: false, style: 'bg-gradient-to-r from-yellow-400 to-yellow-600 text-white' },
@@ -147,11 +151,14 @@ export function CommunityScreen() {
               {/* Actions */}
               <div className="flex items-center justify-between pt-2 border-t border-gray-100">
                 <div className="flex items-center gap-4">
-                  <button className="flex items-center gap-1 text-gray-600 hover:text-[#F43F5E] transition-colors">
+                  <button className="flex items-center gap-2 text-gray-600 hover:text-red-500 transition-colors">
                     <Heart className="w-5 h-5" />
                     <span className="text-sm font-semibold">{post.likes}</span>
                   </button>
-                  <button className="flex items-center gap-1 text-gray-600 hover:text-[#4F46E5] transition-colors">
+                  <button 
+                    onClick={() => onViewPost?.(post.id)}
+                    className="flex items-center gap-2 text-gray-600 hover:text-[#4F46E5] transition-colors"
+                  >
                     <MessageCircle className="w-5 h-5" />
                     <span className="text-sm font-semibold">{post.comments}</span>
                   </button>

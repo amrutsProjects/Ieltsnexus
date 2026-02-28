@@ -23,7 +23,7 @@ export function BottomNav({ activeScreen, onNavigate }: BottomNavProps) {
         boxShadow: '0px -2px 12px rgba(0,0,0,0.04)'
       }}
     >
-      <div className="flex items-center justify-around h-20 px-4">
+      <div className="flex items-center justify-around h-20 px-2">
         {navItems.map((item) => {
           const Icon = item.icon;
           const isActive = activeScreen === item.id;
@@ -35,14 +35,14 @@ export function BottomNav({ activeScreen, onNavigate }: BottomNavProps) {
                 console.log('Clicked:', item.id);
                 onNavigate(item.id);
               }}
-              className="flex flex-col items-center justify-center gap-1 px-4 py-2 transition-colors cursor-pointer"
+              className="flex flex-col items-center justify-center gap-1 px-2 py-2 transition-colors cursor-pointer min-w-0 flex-1"
             >
               <Icon 
                 className={`w-6 h-6 ${isActive ? 'text-[#4F46E5]' : 'text-gray-400'}`}
                 strokeWidth={isActive ? 2.5 : 2}
               />
               <span 
-                className={`text-xs ${isActive ? 'text-[#4F46E5] font-semibold' : 'text-gray-400 font-medium'}`}
+                className={`text-xs ${isActive ? 'text-[#4F46E5] font-semibold' : 'text-gray-400 font-medium'} truncate w-full text-center`}
               >
                 {item.label}
               </span>
