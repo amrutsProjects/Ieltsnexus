@@ -3,6 +3,8 @@ import { Card } from './Card';
 import { PrimaryButton } from './PrimaryButton';
 import { ChevronRight, Target, Briefcase, GraduationCap, Globe, CheckCircle2 } from 'lucide-react';
 import { motion } from 'motion/react';
+import { supabase } from '../lib/supabase';
+import { apiCall } from '../lib/api';
 
 interface AuthScreenProps {
   onAuthComplete: (userData: UserProfile) => void;
@@ -65,41 +67,78 @@ export function AuthScreen({ onAuthComplete }: AuthScreenProps) {
     { value: 'advanced', label: 'Advanced (Band 7.0+)', description: 'Experienced test-taker' },
   ];
 
-  const handleLogin = () => {
-    // Demo credentials check
-    if (loginEmail === 'demo@ielts.com' && loginPassword === 'demo123') {
-      const demoProfile: UserProfile = {
-        name: 'Alex Johnson',
-        email: 'demo@ielts.com',
-        goalScore: 7.5,
-        examReason: 'university',
-        weaknesses: ['Grammar & Sentence Structure', 'Speaking Fluency'],
-        currentLevel: 'intermediate',
-        targetDate: '2026-06-15',
+  const handleLogin = async () => {
+    try {
+      const { error } = await supabase.auth.signInWithPassword({
+        email: loginEmail,
+        password: loginPassword,
+      });
+
+      if (error) throw error;
+
+      // Get profile to pass to app
+      const { profile } = await apiCall('/profile');
+      
+      const userProfile: UserProfile = {
+        name: profile.name || 'User',
+        email: loginEmail,
+        goalScore: profile.goal_score || 7.0,
+        examReason: profile.exam_reason || 'university',
+        weaknesses: [], 
+        currentLevel: profile.current_level || 'intermediate',
+        targetDate: profile.target_date || '',
       };
-      onAuthComplete(demoProfile);
-    } else {
-      alert('Invalid credentials. Use:\nEmail: demo@ielts.com\nPassword: demo123');
+      
+      onAuthComplete(userProfile);
+    } catch (err: any) {
+      alert(err.message || 'Login failed Check your credentials.');
     }
   };
 
-  const handleSignupComplete = () => {
+  const handleSignupComplete = async () => {
     if (!name || !email || !password) {
       alert('Please fill in all required fields');
       return;
     }
-    
-    const userProfile: UserProfile = {
-      name,
-      email,
-      goalScore,
-      examReason,
-      weaknesses,
-      currentLevel,
-      targetDate,
-    };
-    
-    onAuthComplete(userProfile);
+
+    try {
+      const { error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: { name }
+        }
+      });
+      
+      if (error) throw error;
+
+      // Create profile via our backend
+      await apiCall('/auth/complete-profile', {
+        method: 'POST',
+        body: JSON.stringify({
+          name,
+          goal_score: goalScore,
+          exam_reason: examReason,
+          weaknesses,
+          current_level: currentLevel,
+          target_date: targetDate,
+        })
+      });
+      
+      const userProfile: UserProfile = {
+        name,
+        email,
+        goalScore,
+        examReason,
+        weaknesses,
+        currentLevel,
+        targetDate,
+      };
+      
+      onAuthComplete(userProfile);
+    } catch (err: any) {
+      alert(err.message || 'Signup failed');
+    }
   };
 
   const toggleWeakness = (weakness: string) => {

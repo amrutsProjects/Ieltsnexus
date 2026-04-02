@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { apiCall } from './lib/api';
 import { HomeScreen } from './components/HomeScreen';
 import { WritingModule } from './components/WritingModule';
 import { SpeakingSimulation } from './components/SpeakingSimulation';
@@ -23,6 +24,13 @@ export default function App() {
   const [userTier, setUserTier] = useState<'free' | 'premium'>('premium');
   const [availableCredits, setAvailableCredits] = useState(5); // Premium users get 5 credits
   const [selectedPostId, setSelectedPostId] = useState<string | null>(null);
+
+  // Phase 1 testing: Check if backend is alive
+  useEffect(() => {
+    apiCall('/health')
+      .then(res => console.log('Backend connected:', res))
+      .catch(err => console.error('Backend connection failed:', err));
+  }, []);
 
   const handleAuthComplete = (userData: UserProfile) => {
     setUserProfile(userData);
