@@ -22,6 +22,8 @@ interface SavedPost {
 }
 
 interface ProfileScreenProps {
+  userProfile?: any;
+  userStats?: any;
   userTier?: 'free' | 'premium';
   availableCredits?: number;
   onNavigateToWeaknessFix?: (weaknessId: string) => void;
@@ -43,8 +45,8 @@ const savedPosts: SavedPost[] = [
   { id: '6', type: 'Writing', title: 'Education Systems', band: '8.0', author: 'Lisa K.' },
 ];
 
-export function ProfileScreen({ userTier, availableCredits, onNavigateToWeaknessFix }: ProfileScreenProps) {
-  const [selectedPlan, setSelectedPlan] = useState<PlanType>(userTier || 'premium');
+export function ProfileScreen({ userProfile, userStats, userTier, availableCredits, onNavigateToWeaknessFix }: ProfileScreenProps) {
+  const [selectedPlan, setSelectedPlan] = useState<PlanType>(userTier || 'free');
   const [activeTab, setActiveTab] = useState<TabType>('stats');
 
   return (
@@ -53,14 +55,14 @@ export function ProfileScreen({ userTier, availableCredits, onNavigateToWeakness
       <div className="px-6 pt-8 pb-6">
         <div className="flex items-center gap-4">
           <div className="w-20 h-20 rounded-full bg-gradient-to-br from-[#4F46E5] to-[#7C3AED] flex items-center justify-center">
-            <span className="text-3xl font-bold text-white">A</span>
+            <span className="text-3xl font-bold text-white">{userProfile?.name?.charAt(0) || 'A'}</span>
           </div>
           <div>
-            <h2 className="text-2xl font-bold text-gray-900">Alex Johnson</h2>
+            <h2 className="text-2xl font-bold text-gray-900">{userProfile?.name || 'Alex Johnson'}</h2>
             <div className="flex items-center gap-2 mt-1">
               <span className="text-gray-600">Target:</span>
               <span className="px-3 py-1 rounded-full bg-[#10B981] text-white text-sm font-bold">
-                Band 8.0
+                Band {userProfile?.goal_score || '8.0'}
               </span>
             </div>
           </div>
@@ -237,16 +239,15 @@ export function ProfileScreen({ userTier, availableCredits, onNavigateToWeakness
                 })}
               </div>
 
-              {/* Tests Remaining Counter */}
               <div className="mt-4 px-1">
                 <div className={`inline-flex items-center gap-2 px-4 py-2 rounded-full ${
-                  selectedPlan === 'free' 
+                  userTier === 'free' 
                     ? 'bg-gray-100 text-gray-700' 
                     : 'bg-gradient-to-r from-[#4F46E5] to-[#7C3AED] text-white'
                 }`}>
                   <Sparkles className="w-4 h-4" />
                   <span className="text-sm font-semibold">
-                    {selectedPlan === 'free' ? '3/3' : '20/20'} Custom Tests Remaining
+                    {availableCredits || 0} AI Credits Remaining
                   </span>
                 </div>
               </div>
@@ -411,22 +412,22 @@ export function ProfileScreen({ userTier, availableCredits, onNavigateToWeakness
                 <div className="grid grid-cols-2 gap-4">
                   <div className="bg-[#EEF2FF] rounded-2xl p-4">
                     <div className="text-sm text-[#4F46E5] mb-1">Tests Completed</div>
-                    <div className="text-3xl font-bold text-[#4F46E5]">47</div>
+                    <div className="text-3xl font-bold text-[#4F46E5]">{userStats?.tests_completed || 0}</div>
                   </div>
                   
                   <div className="bg-[#ECFDF5] rounded-2xl p-4">
                     <div className="text-sm text-[#10B981] mb-1">Current Band</div>
-                    <div className="text-3xl font-bold text-[#10B981]">6.5</div>
+                    <div className="text-3xl font-bold text-[#10B981]">{userStats?.current_band || '0.0'}</div>
                   </div>
                   
                   <div className="bg-[#FEF3C7] rounded-2xl p-4">
                     <div className="text-sm text-[#F59E0B] mb-1">Study Streak</div>
-                    <div className="text-3xl font-bold text-[#F59E0B]">12</div>
+                    <div className="text-3xl font-bold text-[#F59E0B]">{userStats?.study_streak || 0}</div>
                   </div>
                   
                   <div className="bg-[#FFF1F2] rounded-2xl p-4">
                     <div className="text-sm text-[#F43F5E] mb-1">Hours Practiced</div>
-                    <div className="text-3xl font-bold text-[#F43F5E]">38</div>
+                    <div className="text-3xl font-bold text-[#F43F5E]">{userStats?.hours_practiced || 0}</div>
                   </div>
                 </div>
               </div>

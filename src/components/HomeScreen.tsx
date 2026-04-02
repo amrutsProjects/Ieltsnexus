@@ -5,11 +5,13 @@ import { AnalyticsCard } from './AnalyticsCard';
 import { GamificationBadges } from './GamificationBadges';
 
 interface HomeScreenProps {
+  userProfile?: any;
+  userStats?: any;
   onStartSimulation?: () => void;
   onStartPractice?: (practiceType: 'grammar' | 'writing' | 'speaking') => void;
 }
 
-export function HomeScreen({ onStartSimulation, onStartPractice }: HomeScreenProps) {
+export function HomeScreen({ userProfile, userStats, onStartSimulation, onStartPractice }: HomeScreenProps) {
   const currentScores = {
     Writing: 6.5,
     Speaking: 6.0,
@@ -29,13 +31,13 @@ export function HomeScreen({ onStartSimulation, onStartPractice }: HomeScreenPro
       {/* Header */}
       <div className="px-6 pt-8 pb-6">
         <div className="flex items-center justify-between">
-          <h2 className="text-3xl font-bold text-[#4F46E5]">Hi, Alex</h2>
+          <h2 className="text-3xl font-bold text-[#4F46E5]">Hi, {userProfile?.name?.split(' ')[0] || 'Guest'}</h2>
           <div 
             className="flex items-center gap-2 px-4 py-2 rounded-full bg-gradient-to-r from-orange-500 to-red-500"
             style={{ boxShadow: '0px 4px 12px rgba(249, 115, 22, 0.3)' }}
           >
             <span className="text-2xl">🔥</span>
-            <span className="font-bold text-white">12 Day Streak</span>
+            <span className="font-bold text-white">{userStats?.study_streak || 0} Day Streak</span>
           </div>
         </div>
       </div>
@@ -105,7 +107,7 @@ export function HomeScreen({ onStartSimulation, onStartPractice }: HomeScreenPro
               </p>
             </div>
 
-            <PrimaryButton icon={Play} onClick={() => onStartPractice('grammar')}>
+            <PrimaryButton icon={Play} onClick={() => onStartPractice?.('grammar')}>
               Start Practice (5 min)
             </PrimaryButton>
           </div>

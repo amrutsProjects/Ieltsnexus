@@ -28,3 +28,4 @@ yarn-error.log*
 
 #secret files
 src/backend.md
+src/docs/*

@@ -18,11 +18,13 @@ type ModuleType = 'writing' | 'speaking' | null;
 
 export default function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
+  const [userProfile, setUserProfile] = useState<any>(null);
+  const [userStats, setUserStats] = useState<any>(null);
   const [activeScreen, setActiveScreen] = useState<Screen>('home');
   const [selectedModule, setSelectedModule] = useState<ModuleType>(null);
-  const [userTier, setUserTier] = useState<'free' | 'premium'>('premium');
-  const [availableCredits, setAvailableCredits] = useState(5); // Premium users get 5 credits
+  const [selectedTopicId, setSelectedTopicId] = useState<string | null>(null);
+  const [userTier, setUserTier] = useState<'free' | 'premium'>('free');
+  const [availableCredits, setAvailableCredits] = useState(0);
   const [selectedPostId, setSelectedPostId] = useState<string | null>(null);
 
   // Phase 1 testing: Check if backend is alive
@@ -32,7 +34,21 @@ export default function App() {
       .catch(err => console.error('Backend connection failed:', err));
   }, []);
 
-  const handleAuthComplete = (userData: UserProfile) => {
+  // Fetch true profile data
+  useEffect(() => {
+    if (isAuthenticated) {
+      apiCall('/profile')
+        .then(data => {
+          setUserProfile(data.profile);
+          setUserStats(data.stats);
+          setAvailableCredits(data.credits_balance);
+          setUserTier(data.profile.tier || 'free');
+        })
+        .catch(console.error);
+    }
+  }, [isAuthenticated, activeScreen]); // Refresh stats when returning to home
+
+  const handleAuthComplete = (userData: any) => {
     setUserProfile(userData);
     setIsAuthenticated(true);
   };
@@ -56,6 +72,7 @@ export default function App() {
   };
 
   const handleTopicSelect = (topicId: string) => {
+    setSelectedTopicId(topicId);
     // Navigate to the appropriate module based on selectedModule
     if (selectedModule === 'writing') {
       setActiveScreen('practice');
@@ -113,13 +130,13 @@ export default function App() {
         case 'topicSelection':
           return <TopicSelection onSelectTopic={handleTopicSelect} />;
         case 'practice':
-          return <WritingModule userTier={userTier} availableCredits={availableCredits} />;
+          return <WritingModule userTier={userTier} availableCredits={availableCredits} topicId={selectedTopicId} onBack={() => setActiveScreen('topicSelection')} />;
         case 'speaking':
           return <SpeakingSimulation userTier={userTier} availableCredits={availableCredits} />;
         case 'community':
           return <CommunityScreen onViewPost={handleViewPost} />;
         case 'profile':
-          return <ProfileScreen userTier={userTier} availableCredits={availableCredits} onNavigateToWeaknessFix={(weaknessId) => setActiveScreen('grammarPractice')} />;
+          return <ProfileScreen userProfile={userProfile} userStats={userStats} userTier={userTier} availableCredits={availableCredits} onNavigateToWeaknessFix={(weaknessId) => setActiveScreen('grammarPractice')} />;
         case 'simulationResults':
           return <SimulationResults userTier={userTier} onGoHome={() => setActiveScreen('home')} />;
         case 'postDetail':
@@ -129,7 +146,7 @@ export default function App() {
         case 'grammarPractice':
           return <GrammarPractice onComplete={() => setActiveScreen('home')} />;
         default:
-          return <HomeScreen onStartSimulation={handleStartSimulation} onStartPractice={(type) => setActiveScreen('grammarPractice')} />;
+          return <HomeScreen userProfile={userProfile} userStats={userStats} onStartSimulation={handleStartSimulation} onStartPractice={(type) => setActiveScreen('grammarPractice')} />;
       }
     } catch (error) {
       console.error('Error rendering screen:', error);
