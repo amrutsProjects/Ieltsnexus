@@ -2,27 +2,28 @@ import { useState } from 'react';
 import { Card } from './Card';
 import { PrimaryButton } from './PrimaryButton';
 import { Lock, Save, ChevronDown, ChevronUp } from 'lucide-react';
-import { 
-  Radar, 
-  RadarChart, 
-  PolarGrid, 
-  PolarAngleAxis, 
-  PolarRadiusAxis, 
-  ResponsiveContainer 
+import {
+  Radar,
+  RadarChart,
+  PolarGrid,
+  PolarAngleAxis,
+  PolarRadiusAxis,
+  ResponsiveContainer
 } from 'recharts';
 
 type UserTier = 'free' | 'premium';
 
 interface SimulationResultsProps {
   userTier?: UserTier;
+  examResults?: any;
   onGoHome?: () => void;
 }
 
-export function SimulationResults({ userTier: initialTier = 'free', onGoHome }: SimulationResultsProps) {
+export function SimulationResults({ userTier: initialTier = 'free', examResults, onGoHome }: SimulationResultsProps) {
   const [expandedInsight, setExpandedInsight] = useState<string | null>(null);
   const [userTier, setUserTier] = useState<UserTier>(initialTier);
 
-  const scores = {
+  const scores = examResults || {
     listening: 6.0,
     reading: 6.5,
     writing: 6.0,
@@ -31,10 +32,10 @@ export function SimulationResults({ userTier: initialTier = 'free', onGoHome }: 
   };
 
   const radarData = [
-    { skill: 'Listening', score: 6.0, fullMark: 9 },
-    { skill: 'Reading', score: 6.5, fullMark: 9 },
-    { skill: 'Writing', score: 6.0, fullMark: 9 },
-    { skill: 'Speaking', score: 7.0, fullMark: 9 },
+    { skill: 'Listening', score: scores.listening, fullMark: 9 },
+    { skill: 'Reading', score: scores.reading, fullMark: 9 },
+    { skill: 'Writing', score: scores.writing, fullMark: 9 },
+    { skill: 'Speaking', score: scores.speaking, fullMark: 9 },
   ];
 
   const insights = [
@@ -74,21 +75,19 @@ export function SimulationResults({ userTier: initialTier = 'free', onGoHome }: 
             <div className="flex bg-gray-100 rounded-xl p-1">
               <button
                 onClick={() => setUserTier('free')}
-                className={`px-4 py-2 rounded-lg font-semibold text-sm transition-all ${
-                  userTier === 'free'
+                className={`px-4 py-2 rounded-lg font-semibold text-sm transition-all ${userTier === 'free'
                     ? 'bg-white text-gray-900 shadow-md'
                     : 'text-gray-500'
-                }`}
+                  }`}
               >
                 Free
               </button>
               <button
                 onClick={() => setUserTier('premium')}
-                className={`px-4 py-2 rounded-lg font-semibold text-sm transition-all ${
-                  userTier === 'premium'
+                className={`px-4 py-2 rounded-lg font-semibold text-sm transition-all ${userTier === 'premium'
                     ? 'bg-white text-gray-900 shadow-md'
                     : 'text-gray-500'
-                }`}
+                  }`}
               >
                 Premium
               </button>
@@ -176,13 +175,13 @@ export function SimulationResults({ userTier: initialTier = 'free', onGoHome }: 
                 <ResponsiveContainer width="100%" height="100%" minHeight={250}>
                   <RadarChart data={radarData}>
                     <PolarGrid stroke="#E5E7EB" />
-                    <PolarAngleAxis 
-                      dataKey="skill" 
+                    <PolarAngleAxis
+                      dataKey="skill"
                       tick={{ fill: '#6B7280', fontSize: 12 }}
                     />
-                    <PolarRadiusAxis 
-                      angle={90} 
-                      domain={[0, 9]} 
+                    <PolarRadiusAxis
+                      angle={90}
+                      domain={[0, 9]}
                       tick={{ fill: '#6B7280', fontSize: 10 }}
                     />
                     <Radar

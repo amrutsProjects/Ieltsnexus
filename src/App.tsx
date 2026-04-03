@@ -22,7 +22,8 @@ export default function App() {
   const [userStats, setUserStats] = useState<any>(null);
   const [activeScreen, setActiveScreen] = useState<Screen>('home');
   const [selectedModule, setSelectedModule] = useState<ModuleType>(null);
-  const [selectedTopicId, setSelectedTopicId] = useState<string | null>(null);
+  const [selectedTopic, setSelectedTopic] = useState<{ id: string; name: string } | null>(null);
+  const [examResults, setExamResults] = useState<any>(null);
   const [userTier, setUserTier] = useState<'free' | 'premium'>('free');
   const [availableCredits, setAvailableCredits] = useState(0);
   const [selectedPostId, setSelectedPostId] = useState<string | null>(null);
@@ -35,7 +36,7 @@ export default function App() {
   }, []);
 
   // Fetch true profile data
-  useEffect(() => {
+  const refreshProfile = () => {
     if (isAuthenticated) {
       apiCall('/profile')
         .then(data => {
@@ -46,7 +47,11 @@ export default function App() {
         })
         .catch(console.error);
     }
-  }, [isAuthenticated, activeScreen]); // Refresh stats when returning to home
+  };
+
+  useEffect(() => {
+    refreshProfile();
+  }, [isAuthenticated, activeScreen]);
 
   const handleAuthComplete = (userData: any) => {
     setUserProfile(userData);
@@ -71,8 +76,8 @@ export default function App() {
     setActiveScreen('topicSelection');
   };
 
-  const handleTopicSelect = (topicId: string) => {
-    setSelectedTopicId(topicId);
+  const handleTopicSelect = (topic: { id: string; name: string }) => {
+    setSelectedTopic(topic);
     // Navigate to the appropriate module based on selectedModule
     if (selectedModule === 'writing') {
       setActiveScreen('practice');
@@ -85,8 +90,10 @@ export default function App() {
     setActiveScreen('examSimulation');
   };
 
-  const handleEndExam = () => {
+  const handleEndExam = (results: any) => {
+    setExamResults(results);
     setActiveScreen('simulationResults');
+    refreshProfile(); // Sync credits after exam
   };
 
   const handleViewPost = (postId: string) => {
@@ -118,9 +125,9 @@ export default function App() {
   };
 
   // Determine if bottom nav should be hidden
-  const shouldHideBottomNav = activeScreen === 'simulationResults' || 
-                               activeScreen === 'postDetail' || 
-                               activeScreen === 'examSimulation';
+  const shouldHideBottomNav = activeScreen === 'simulationResults' ||
+    activeScreen === 'postDetail' ||
+    activeScreen === 'examSimulation';
 
   const renderScreen = () => {
     try {
@@ -130,15 +137,15 @@ export default function App() {
         case 'topicSelection':
           return <TopicSelection onSelectTopic={handleTopicSelect} />;
         case 'practice':
-          return <WritingModule userTier={userTier} availableCredits={availableCredits} topicId={selectedTopicId} onBack={() => setActiveScreen('topicSelection')} />;
+          return <WritingModule userTier={userTier} availableCredits={availableCredits} topicId={selectedTopic?.id || null} topicName={selectedTopic?.name || null} onBack={() => setActiveScreen('topicSelection')} onCreditUpdate={refreshProfile} />;
         case 'speaking':
-          return <SpeakingSimulation userTier={userTier} availableCredits={availableCredits} />;
+          return <SpeakingSimulation userTier={userTier} availableCredits={availableCredits} topicId={selectedTopic?.id || null} topicName={selectedTopic?.name || null} onBack={() => setActiveScreen('topicSelection')} onCreditUpdate={refreshProfile} />;
         case 'community':
           return <CommunityScreen onViewPost={handleViewPost} />;
         case 'profile':
           return <ProfileScreen userProfile={userProfile} userStats={userStats} userTier={userTier} availableCredits={availableCredits} onNavigateToWeaknessFix={(weaknessId) => setActiveScreen('grammarPractice')} />;
         case 'simulationResults':
-          return <SimulationResults userTier={userTier} onGoHome={() => setActiveScreen('home')} />;
+          return <SimulationResults userTier={userTier} examResults={examResults} onGoHome={() => setActiveScreen('home')} />;
         case 'postDetail':
           return <CommunityPostDetail onBack={handleBackFromPost} onTryTest={handleTryTestFromPost} />;
         case 'examSimulation':
@@ -162,9 +169,9 @@ export default function App() {
   return (
     <div className="relative min-h-screen bg-[#F8FAFC]">
       {/* Mobile Container */}
-      <div 
+      <div
         className="mx-auto bg-white shadow-2xl relative overflow-hidden"
-        style={{ 
+        style={{
           maxWidth: '393px',
           minHeight: '100vh'
         }}
@@ -180,9 +187,9 @@ export default function App() {
 
             {/* Bottom Navigation */}
             {!shouldHideBottomNav && (
-              <BottomNav 
-                activeScreen={getActiveNavScreen()} 
-                onNavigate={handleNavigate} 
+              <BottomNav
+                activeScreen={getActiveNavScreen()}
+                onNavigate={handleNavigate}
               />
             )}
           </>
@@ -190,7 +197,7 @@ export default function App() {
       </div>
 
       {/* Desktop Background Pattern */}
-      <div 
+      <div
         className="fixed inset-0 -z-10 opacity-30"
         style={{
           backgroundImage: 'radial-gradient(circle at 20% 50%, rgba(79, 70, 229, 0.1) 0%, transparent 50%), radial-gradient(circle at 80% 80%, rgba(16, 185, 129, 0.1) 0%, transparent 50%)'

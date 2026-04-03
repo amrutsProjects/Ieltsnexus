@@ -11,7 +11,7 @@ export interface Topic {
 }
 
 interface TopicSelectionProps {
-  onSelectTopic: (topicId: string) => void;
+  onSelectTopic: (topic: { id: string; name: string }) => void;
 }
 
 export function TopicSelection({ onSelectTopic }: TopicSelectionProps) {
@@ -77,37 +77,37 @@ export function TopicSelection({ onSelectTopic }: TopicSelectionProps) {
           </div>
         ) : (
           <div className="grid grid-cols-2 gap-4">
-          {filteredTopics.map((topic) => (
-            <button
-              key={topic.id}
-              onClick={() => onSelectTopic(topic.id)}
-              className="group"
-            >
-              <Card className="h-full hover:scale-105 transition-transform duration-200 cursor-pointer">
-                <div className="flex flex-col items-center text-center space-y-3">
-                  {/* Icon */}
-                  <div 
-                    className="w-16 h-16 rounded-2xl bg-[#E0E7FF] flex items-center justify-center group-hover:bg-[#4F46E5] transition-colors"
-                  >
-                    <span className="text-4xl">{topic.emoji}</span>
+            {filteredTopics.map((topic) => (
+              <button
+                key={topic.id}
+                onClick={() => onSelectTopic({ id: topic.id, name: topic.name })}
+                className="group"
+              >
+                <Card className="h-full hover:scale-105 transition-transform duration-200 cursor-pointer">
+                  <div className="flex flex-col items-center text-center space-y-3">
+                    {/* Icon */}
+                    <div
+                      className="w-16 h-16 rounded-2xl bg-[#E0E7FF] flex items-center justify-center group-hover:bg-[#4F46E5] transition-colors"
+                    >
+                      <span className="text-4xl">{topic.emoji}</span>
+                    </div>
+
+                    {/* Topic Name */}
+                    <h3 className="font-bold text-gray-900 text-sm leading-tight">
+                      {topic.name}
+                    </h3>
+
+                    {/* Frequency Badge */}
+                    <span
+                      className={`text-xs font-semibold px-3 py-1 rounded-full ${getFrequencyColor(topic.frequency)}`}
+                    >
+                      {topic.frequency} Frequency
+                    </span>
                   </div>
-
-                  {/* Topic Name */}
-                  <h3 className="font-bold text-gray-900 text-sm leading-tight">
-                    {topic.name}
-                  </h3>
-
-                  {/* Frequency Badge */}
-                  <span 
-                    className={`text-xs font-semibold px-3 py-1 rounded-full ${getFrequencyColor(topic.frequency)}`}
-                  >
-                    {topic.frequency} Frequency
-                  </span>
-                </div>
-              </Card>
-            </button>
-          ))}
-        </div>
+                </Card>
+              </button>
+            ))}
+          </div>
         )}
 
         {/* No Results */}

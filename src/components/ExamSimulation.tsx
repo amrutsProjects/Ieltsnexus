@@ -1,11 +1,12 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Card } from './Card';
-import { X, ChevronRight, Mic, Play, Pause } from 'lucide-react';
+import { X, ChevronRight, Mic, Play, Pause, AlertTriangle } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { ReviewChoiceModal } from './ReviewChoiceModal';
+import { apiCall } from '../lib/api';
 
 interface ExamSimulationProps {
-  onEndExam: () => void;
+  onEndExam: (results: any) => void;
   userTier?: 'free' | 'premium';
   availableCredits?: number;
 }
@@ -26,17 +27,43 @@ const speakingQuestions = [
 ];
 
 export function ExamSimulation({ onEndExam, userTier = 'free', availableCredits = 0 }: ExamSimulationProps) {
+  const [examId, setExamId] = useState<string | null>(null);
   const [currentPhase, setCurrentPhase] = useState<ExamPhase>('listening');
   const [currentQuestion, setCurrentQuestion] = useState(1);
   const [timeLeft, setTimeLeft] = useState(3600); // 60 minutes
   const [showEndModal, setShowEndModal] = useState(false);
   const [showSkipModal, setShowSkipModal] = useState(false);
   const [showReviewModal, setShowReviewModal] = useState(false);
+
+  // Phase 1/2 Data
+  const [listeningAnswers, setListeningAnswers] = useState<Record<number, string>>({});
+  const [readingAnswers, setReadingAnswers] = useState<Record<number, string>>({});
+
+  // Phase 3 Data
+  const [writingTask, setWritingTask] = useState<1 | 2>(1);
+  const [task1Text, setTask1Text] = useState("");
+  const [task2Text, setTask2Text] = useState("");
+  const wordCount1 = task1Text.trim().split(/\s+/).filter((w) => w.length > 0).length;
+  const wordCount2 = task2Text.trim().split(/\s+/).filter((w) => w.length > 0).length;
+
+  // Phase 4 Data
   const [isPlaying, setIsPlaying] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
   const [speakingQuestionIndex, setSpeakingQuestionIndex] = useState(0);
-  const [wordCount, setWordCount] = useState(0);
-  const [writingTask, setWritingTask] = useState<1 | 2>(1);
+  const [speakingSubmissionId, setSpeakingSubmissionId] = useState<string | null>(null);
+
+  // Audio Recording Refs
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const chunksRef = useRef<Blob[]>([]);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
+        mediaRecorderRef.current.stop();
+      }
+    };
+  }, []);
 
   const phaseConfig = {
     listening: { title: 'Listening - Section 1', totalQuestions: 10, duration: 1800 },
@@ -57,6 +84,31 @@ export function ExamSimulation({ onEndExam, userTier = 'free', availableCredits 
     { year: '2020', students: 185 },
   ];
 
+  // Initialize Exam Session
+  useEffect(() => {
+    const startExam = async () => {
+      try {
+        const response = await apiCall('/exam/start', { method: 'POST' });
+        setExamId(response.exam_id);
+      } catch (err) {
+        console.error('Failed to start exam:', err);
+      }
+    };
+    startExam();
+  }, []);
+
+  // Initialize Speaking Sub-session when reaching the phase
+  useEffect(() => {
+    if (currentPhase === 'speaking' && !speakingSubmissionId && examId) {
+      apiCall('/speaking/start', {
+        method: 'POST',
+        body: JSON.stringify({ topic_id: 'technology', exam_id: examId, exam_simulation_id: examId })
+      })
+        .then(res => setSpeakingSubmissionId(res.submission_id))
+        .catch(err => console.error('Failed to initialize speaking sub-session:', err));
+    }
+  }, [currentPhase, examId, speakingSubmissionId]);
+
   // Timer countdown
   useEffect(() => {
     const interval = setInterval(() => {
@@ -71,14 +123,44 @@ export function ExamSimulation({ onEndExam, userTier = 'free', availableCredits 
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
 
-  const handleNextSection = () => {
-    const phases: ExamPhase[] = ['listening', 'reading', 'writing', 'speaking'];
-    const currentIndex = phases.indexOf(currentPhase);
-    if (currentIndex < phases.length - 1) {
-      setCurrentPhase(phases[currentIndex + 1]);
-      setCurrentQuestion(1);
-      setTimeLeft(phaseConfig[phases[currentIndex + 1]].duration);
-      setSpeakingQuestionIndex(0);
+  const handleNextSection = async () => {
+    try {
+      if (currentPhase === 'listening') {
+        const answers = Object.entries(listeningAnswers).map(([num, val]) => ({ question_number: parseInt(num), selected_answer: val }));
+        if (examId) await apiCall(`/exam/${examId}/listening/submit`, { method: 'POST', body: JSON.stringify({ answers }) });
+      } else if (currentPhase === 'reading') {
+        const answers = Object.entries(readingAnswers).map(([num, val]) => ({ question_number: parseInt(num), selected_answer: val }));
+        if (examId) await apiCall(`/exam/${examId}/reading/submit`, { method: 'POST', body: JSON.stringify({ answers }) });
+      } else if (currentPhase === 'writing') {
+        if (examId) {
+          await apiCall(`/writing/submit`, {
+            method: 'POST',
+            body: JSON.stringify({
+              exam_id: examId,
+              topic_id: 'technology',
+              task1_prompt: 'Exam Task 1',
+              task2_prompt: 'Exam Task 2',
+              task1_text: task1Text,
+              task2_text: task2Text,
+              task1_word_count: wordCount1,
+              task2_word_count: wordCount2,
+              time_spent_seconds: 3600 - timeLeft
+            })
+          });
+        }
+      }
+
+      // Transition frontend
+      const phases: ExamPhase[] = ['listening', 'reading', 'writing', 'speaking'];
+      const currentIndex = phases.indexOf(currentPhase);
+      if (currentIndex < phases.length - 1) {
+        setCurrentPhase(phases[currentIndex + 1]);
+        setCurrentQuestion(1);
+        setTimeLeft(phaseConfig[phases[currentIndex + 1]].duration);
+        setSpeakingQuestionIndex(0);
+      }
+    } catch (err) {
+      console.error(`Failed to submit phase ${currentPhase}:`, err);
     }
   };
 
@@ -87,32 +169,78 @@ export function ExamSimulation({ onEndExam, userTier = 'free', availableCredits 
     setShowReviewModal(true);
   };
 
-  const handleAIReview = () => {
+  const handleAIReview = async () => {
     setShowReviewModal(false);
-    onEndExam();
+    try {
+      if (examId) {
+        const response = await apiCall(`/exam/${examId}/complete`, { method: 'POST' });
+        console.log("Exam Completed & Graded:", response.results);
+        onEndExam(response.results);
+        return;
+      }
+    } catch (error) {
+      console.error("Failed to complete exam:", error);
+    }
+    onEndExam(null);
   };
 
   const handleHumanReview = () => {
     setShowReviewModal(false);
     alert('Submitted for Human Verification! You will receive results in 24-48 hours.');
-    onEndExam();
+    onEndExam(null);
+  };
+
+  const handleStartRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mediaRecorder = new MediaRecorder(stream);
+      mediaRecorderRef.current = mediaRecorder;
+      chunksRef.current = [];
+
+      mediaRecorder.ondataavailable = (e) => {
+        if (e.data.size > 0) chunksRef.current.push(e.data);
+      };
+
+      mediaRecorder.onstop = async () => {
+        const blob = new Blob(chunksRef.current, { type: 'audio/webm' });
+        stream.getTracks().forEach((track) => track.stop());
+
+        if (examId && speakingSubmissionId) {
+          try {
+            const formData = new FormData();
+            formData.append('audio', blob, `question_${speakingQuestionIndex}.webm`);
+            formData.append('question_index', speakingQuestionIndex.toString());
+            formData.append('question_text', speakingQuestions[speakingQuestionIndex]);
+
+            await apiCall(`/speaking/${speakingSubmissionId}/response`, {
+              method: 'POST',
+              body: formData,
+            });
+          } catch (err) {
+            console.error('Failed to upload exam audio chunk:', err);
+          }
+        }
+
+        if (speakingQuestionIndex < speakingQuestions.length - 1) {
+          setSpeakingQuestionIndex(prev => prev + 1);
+          setCurrentQuestion(prev => prev + 1);
+        } else {
+          setShowEndModal(true);
+        }
+      };
+
+      mediaRecorder.start(1000);
+      setIsRecording(true);
+    } catch (err) {
+      console.error("Failed to access microphone", err);
+    }
   };
 
   const handleStopRecording = () => {
     setIsRecording(false);
-    // Move to next speaking question
-    if (speakingQuestionIndex < speakingQuestions.length - 1) {
-      setTimeout(() => {
-        setSpeakingQuestionIndex(speakingQuestionIndex + 1);
-        setCurrentQuestion(currentQuestion + 1);
-      }, 500);
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
+      mediaRecorderRef.current.stop();
     }
-  };
-
-  const handleTextChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    const text = e.target.value;
-    const words = text.trim().split(/\s+/).filter(word => word.length > 0);
-    setWordCount(words.length);
   };
 
   return (
@@ -201,6 +329,8 @@ export function ExamSimulation({ onEndExam, userTier = 'free', availableCredits 
                             <input
                               type="radio"
                               name={`q${num}`}
+                              checked={listeningAnswers[num] === String.fromCharCode(65 + i)}
+                              onChange={() => setListeningAnswers(prev => ({ ...prev, [num]: String.fromCharCode(65 + i) }))}
                               className="w-4 h-4 accent-[#4F46E5]"
                             />
                             <span className="text-gray-700">{String.fromCharCode(65 + i)}. {option}</span>
@@ -224,7 +354,7 @@ export function ExamSimulation({ onEndExam, userTier = 'free', availableCredits 
               <Card className="border-2 border-[#10B981]">
                 <h2 className="text-2xl font-bold text-gray-900 mb-4">Passage 1</h2>
                 <h3 className="text-xl font-semibold text-[#10B981] mb-4">The History of Writing</h3>
-                
+
                 <div className="space-y-4 text-gray-700 leading-relaxed">
                   <p>
                     Writing is one of humanity's greatest inventions, enabling the preservation and transmission of knowledge across generations. The earliest known writing systems emerged independently in several ancient civilizations.
@@ -275,6 +405,8 @@ export function ExamSimulation({ onEndExam, userTier = 'free', availableCredits 
                             <input
                               type="radio"
                               name={`reading-q${i + 1}`}
+                              checked={readingAnswers[i + 1] === answer}
+                              onChange={() => setReadingAnswers(prev => ({ ...prev, [i + 1]: answer }))}
                               className="w-4 h-4 accent-[#10B981]"
                             />
                             <span className="text-sm text-gray-700 font-medium">{answer}</span>
@@ -296,21 +428,19 @@ export function ExamSimulation({ onEndExam, userTier = 'free', availableCredits 
             <div className="flex gap-3">
               <button
                 onClick={() => setWritingTask(1)}
-                className={`flex-1 py-3 rounded-xl font-bold transition-all ${
-                  writingTask === 1
-                    ? 'bg-[#F43F5E] text-white shadow-md'
-                    : 'bg-white text-gray-700 border-2 border-gray-300 hover:bg-gray-50'
-                }`}
+                className={`flex-1 py-3 rounded-xl font-bold transition-all ${writingTask === 1
+                  ? 'bg-[#F43F5E] text-white shadow-md'
+                  : 'bg-white text-gray-700 border-2 border-gray-300 hover:bg-gray-50'
+                  }`}
               >
                 Task 1: Report
               </button>
               <button
                 onClick={() => setWritingTask(2)}
-                className={`flex-1 py-3 rounded-xl font-bold transition-all ${
-                  writingTask === 2
-                    ? 'bg-[#F43F5E] text-white shadow-md'
-                    : 'bg-white text-gray-700 border-2 border-gray-300 hover:bg-gray-50'
-                }`}
+                className={`flex-1 py-3 rounded-xl font-bold transition-all ${writingTask === 2
+                  ? 'bg-[#F43F5E] text-white shadow-md'
+                  : 'bg-white text-gray-700 border-2 border-gray-300 hover:bg-gray-50'
+                  }`}
               >
                 Task 2: Essay
               </button>
@@ -346,15 +476,15 @@ export function ExamSimulation({ onEndExam, userTier = 'free', availableCredits 
                       <ResponsiveContainer width="100%" height="100%" minHeight={250}>
                         <BarChart data={chartData}>
                           <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
-                          <XAxis 
-                            dataKey="year" 
+                          <XAxis
+                            dataKey="year"
                             tick={{ fill: '#6B7280', fontSize: 12 }}
                           />
-                          <YAxis 
+                          <YAxis
                             tick={{ fill: '#6B7280', fontSize: 12 }}
                             label={{ value: 'Students (thousands)', angle: -90, position: 'insideLeft', style: { fill: '#6B7280', fontSize: 12 } }}
                           />
-                          <Tooltip 
+                          <Tooltip
                             contentStyle={{ backgroundColor: '#FFF', border: '1px solid #E5E7EB', borderRadius: '8px' }}
                           />
                           <Bar dataKey="students" fill="#F43F5E" radius={[8, 8, 0, 0]} />
@@ -366,14 +496,15 @@ export function ExamSimulation({ onEndExam, userTier = 'free', availableCredits 
                   {/* Word Count */}
                   <div className="flex items-center justify-between text-sm px-2">
                     <span className="text-gray-600">Word Count:</span>
-                    <span className={`font-bold ${wordCount >= 150 ? 'text-[#10B981]' : 'text-[#F43F5E]'}`}>
-                      {wordCount} / 150 minimum
+                    <span className={`font-bold ${wordCount1 >= 150 ? 'text-[#10B981]' : 'text-[#F43F5E]'}`}>
+                      {wordCount1} / 150 minimum
                     </span>
                   </div>
 
                   {/* Editor */}
                   <textarea
-                    onChange={handleTextChange}
+                    value={task1Text}
+                    onChange={(e) => setTask1Text(e.target.value)}
                     className="w-full min-h-[300px] p-4 bg-white text-gray-900 rounded-xl border-2 border-gray-300 outline-none focus:border-[#F43F5E] transition-colors resize-none text-sm leading-relaxed"
                     placeholder="Begin writing your response here..."
                   />
@@ -412,14 +543,15 @@ export function ExamSimulation({ onEndExam, userTier = 'free', availableCredits 
                   {/* Word Count */}
                   <div className="flex items-center justify-between text-sm px-2">
                     <span className="text-gray-600">Word Count:</span>
-                    <span className={`font-bold ${wordCount >= 250 ? 'text-[#10B981]' : 'text-[#F43F5E]'}`}>
-                      {wordCount} / 250 minimum
+                    <span className={`font-bold ${wordCount2 >= 250 ? 'text-[#10B981]' : 'text-[#F43F5E]'}`}>
+                      {wordCount2} / 250 minimum
                     </span>
                   </div>
 
                   {/* Editor */}
                   <textarea
-                    onChange={handleTextChange}
+                    value={task2Text}
+                    onChange={(e) => setTask2Text(e.target.value)}
                     className="w-full min-h-[400px] p-4 bg-white text-gray-900 rounded-xl border-2 border-gray-300 outline-none focus:border-[#F43F5E] transition-colors resize-none text-sm leading-relaxed"
                     placeholder="Begin writing your essay here..."
                   />
@@ -442,13 +574,13 @@ export function ExamSimulation({ onEndExam, userTier = 'free', availableCredits 
                 {/* Recording indicator rings */}
                 {isRecording && (
                   <>
-                    <div className="absolute inset-0 rounded-full bg-red-500 opacity-20 animate-ping" 
-                         style={{ animationDuration: '2s' }}></div>
-                    <div className="absolute inset-0 rounded-full bg-red-500 opacity-20 animate-ping" 
-                         style={{ animationDuration: '2s', animationDelay: '0.5s' }}></div>
+                    <div className="absolute inset-0 rounded-full bg-red-500 opacity-20 animate-ping"
+                      style={{ animationDuration: '2s' }}></div>
+                    <div className="absolute inset-0 rounded-full bg-red-500 opacity-20 animate-ping"
+                      style={{ animationDuration: '2s', animationDelay: '0.5s' }}></div>
                   </>
                 )}
-                
+
                 {/* Orb Avatar - Larger */}
                 <div className="relative w-40 h-40 rounded-full bg-gradient-to-br from-[#4F46E5] via-[#7C3AED] to-[#10B981] flex items-center justify-center shadow-2xl">
                   <div className="w-36 h-36 rounded-full bg-gradient-to-br from-[#6366F1] to-[#8B5CF6] flex items-center justify-center">
@@ -498,12 +630,11 @@ export function ExamSimulation({ onEndExam, userTier = 'free', availableCredits 
 
                 <div className="flex items-center justify-center">
                   <button
-                    onClick={() => isRecording ? handleStopRecording() : setIsRecording(true)}
-                    className={`px-8 py-4 rounded-2xl font-bold transition-all ${
-                      isRecording 
-                        ? 'bg-red-600 hover:bg-red-700 text-white' 
-                        : 'bg-[#4F46E5] hover:bg-[#4338CA] text-white'
-                    }`}
+                    onClick={() => isRecording ? handleStopRecording() : handleStartRecording()}
+                    className={`px-8 py-4 rounded-2xl font-bold transition-all ${isRecording
+                      ? 'bg-red-600 hover:bg-red-700 text-white'
+                      : 'bg-[#4F46E5] hover:bg-[#4338CA] text-white'
+                      }`}
                   >
                     {isRecording ? 'Stop Recording' : 'Start Recording'}
                   </button>
@@ -531,7 +662,7 @@ export function ExamSimulation({ onEndExam, userTier = 'free', availableCredits 
 
           {/* Skip to Next Section */}
           <button
-            onClick={() => setShowSkipModal(true)}
+            onClick={handleNextSection}
             className="flex items-center gap-2 px-6 py-3 bg-[#4F46E5] text-white font-bold rounded-xl hover:bg-[#4338CA] transition-colors shadow-md"
           >
             <span>Skip to Next Section</span>
