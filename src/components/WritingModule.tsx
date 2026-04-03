@@ -297,7 +297,9 @@ export function WritingModule({ userTier = 'free', availableCredits = 0, topicId
   const [showReviewModal, setShowReviewModal] = useState(false);
   const [task1Text, setTask1Text] = useState('');
   const [task2Text, setTask2Text] = useState('');
-
+  const [currentSubmissionId, setCurrentSubmissionId] = useState<string | null>(null);
+  const [isPublishing, setIsPublishing] = useState(false);
+  const [isPublished, setIsPublished] = useState(false);
   // API integration state
   const [aiFeedback, setAiFeedback] = useState<AIFeedback | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -332,6 +334,7 @@ export function WritingModule({ userTier = 'free', availableCredits = 0, topicId
     setShowReviewModal(false);
     setViewMode('loading');
     setError(null);
+    setIsPublished(false); // Reset publish state for new attempts
 
     try {
       // Step 1: Submit the writing
@@ -350,6 +353,8 @@ export function WritingModule({ userTier = 'free', availableCredits = 0, topicId
       });
 
       const newSubmissionId = submitResponse.submission_id;
+      // ADD THIS LINE:
+      setCurrentSubmissionId(newSubmissionId);
 
       // Step 2: Request AI review
       const reviewResponse = await apiCall(`/writing/${newSubmissionId}/review/ai`, {
@@ -370,6 +375,31 @@ export function WritingModule({ userTier = 'free', availableCredits = 0, topicId
   const handleHumanReview = () => {
     setShowReviewModal(false);
     alert('Submitted for Human Verification! You will receive results in 24-48 hours.');
+  };
+
+  const handlePublishToCommunity = async () => {
+    if (!currentSubmissionId) {
+      alert('Cannot publish: Submission ID is missing.');
+      return;
+    }
+
+    try {
+      setIsPublishing(true);
+      await apiCall('/community/posts', {
+        method: 'POST',
+        body: JSON.stringify({
+          writing_submission_id: currentSubmissionId,
+          title: `Writing Task 2: ${topicName || 'General Practice'}`
+        })
+      });
+      setIsPublished(true);
+      alert('Published successfully! Check the Community tab to see your post.');
+    } catch (error: any) {
+      console.error('Publish failed', error);
+      alert(`Could not publish to community: ${error.message}`);
+    } finally {
+      setIsPublishing(false);
+    }
   };
 
   // ─── Loading Screen ─────────────────────────────────────────────
@@ -548,6 +578,31 @@ export function WritingModule({ userTier = 'free', availableCredits = 0, topicId
                   Verify for $9.99
                 </PrimaryButton>
               </div>
+            </div>
+          </Card>
+          {/* ADD THIS NEW PUBLISH CARD HERE */}
+          <Card className="bg-[#EEF2FF] border-2 border-[#4F46E5]">
+            <div className="space-y-4 text-center py-2">
+              <h3 className="font-bold text-lg text-gray-900">Proud of your essay?</h3>
+              <p className="text-sm text-gray-700 mb-4">
+                Share your writing and AI feedback with the IELTS Nexus community to help others learn.
+              </p>
+              <button
+                onClick={handlePublishToCommunity}
+                disabled={isPublishing || isPublished}
+                className={`w-full py-3 px-4 rounded-xl font-bold flex justify-center items-center gap-2 transition-all ${isPublished
+                    ? 'bg-green-100 text-green-700 border-2 border-green-200'
+                    : 'bg-[#4F46E5] text-white hover:bg-[#4338CA] shadow-md shadow-[#4F46E5]/20'
+                  }`}
+              >
+                {isPublishing ? (
+                  <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                ) : isPublished ? (
+                  <>✓ Published to Community Feed</>
+                ) : (
+                  <>Share to Community Feed</>
+                )}
+              </button>
             </div>
           </Card>
         </div>
