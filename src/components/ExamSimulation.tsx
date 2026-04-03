@@ -99,15 +99,15 @@ export function ExamSimulation({ onEndExam, userTier = 'free', availableCredits 
 
   // Initialize Speaking Sub-session when reaching the phase
   useEffect(() => {
-    if (currentPhase === 'speaking' && !speakingSubmissionId && examId) {
+    if (currentPhase === 'speaking' && !speakingSubmissionId) {
       apiCall('/speaking/start', {
         method: 'POST',
-        body: JSON.stringify({ topic_id: 'technology', exam_id: examId, exam_simulation_id: examId })
+        body: JSON.stringify({ topic_id: 'technology' })
       })
         .then(res => setSpeakingSubmissionId(res.submission_id))
         .catch(err => console.error('Failed to initialize speaking sub-session:', err));
     }
-  }, [currentPhase, examId, speakingSubmissionId]);
+  }, [currentPhase, speakingSubmissionId]);
 
   // Timer countdown
   useEffect(() => {
@@ -124,43 +124,42 @@ export function ExamSimulation({ onEndExam, userTier = 'free', availableCredits 
   };
 
   const handleNextSection = async () => {
+    // Submit current phase data — errors are caught per-phase so navigation always proceeds
     try {
-      if (currentPhase === 'listening') {
+      if (currentPhase === 'listening' && examId) {
         const answers = Object.entries(listeningAnswers).map(([num, val]) => ({ question_number: parseInt(num), selected_answer: val }));
-        if (examId) await apiCall(`/exam/${examId}/listening/submit`, { method: 'POST', body: JSON.stringify({ answers }) });
-      } else if (currentPhase === 'reading') {
+        await apiCall(`/exam/${examId}/listening/submit`, { method: 'POST', body: JSON.stringify({ answers }) }).catch(err => console.warn('Listening submit skipped:', err.message));
+      } else if (currentPhase === 'reading' && examId) {
         const answers = Object.entries(readingAnswers).map(([num, val]) => ({ question_number: parseInt(num), selected_answer: val }));
-        if (examId) await apiCall(`/exam/${examId}/reading/submit`, { method: 'POST', body: JSON.stringify({ answers }) });
-      } else if (currentPhase === 'writing') {
-        if (examId) {
-          await apiCall(`/writing/submit`, {
-            method: 'POST',
-            body: JSON.stringify({
-              exam_id: examId,
-              topic_id: 'technology',
-              task1_prompt: 'Exam Task 1',
-              task2_prompt: 'Exam Task 2',
-              task1_text: task1Text,
-              task2_text: task2Text,
-              task1_word_count: wordCount1,
-              task2_word_count: wordCount2,
-              time_spent_seconds: 3600 - timeLeft
-            })
-          });
-        }
-      }
-
-      // Transition frontend
-      const phases: ExamPhase[] = ['listening', 'reading', 'writing', 'speaking'];
-      const currentIndex = phases.indexOf(currentPhase);
-      if (currentIndex < phases.length - 1) {
-        setCurrentPhase(phases[currentIndex + 1]);
-        setCurrentQuestion(1);
-        setTimeLeft(phaseConfig[phases[currentIndex + 1]].duration);
-        setSpeakingQuestionIndex(0);
+        await apiCall(`/exam/${examId}/reading/submit`, { method: 'POST', body: JSON.stringify({ answers }) }).catch(err => console.warn('Reading submit skipped:', err.message));
+      } else if (currentPhase === 'writing' && examId) {
+        // Reuse the working standalone writing endpoint
+        await apiCall('/writing/submit', {
+          method: 'POST',
+          body: JSON.stringify({
+            topic_id: 'technology',
+            task1_prompt: 'The chart below shows the number of international students enrolled at universities in three countries between 2015 and 2020. Summarize the information by selecting and reporting the main features, and make comparisons where relevant.',
+            task2_prompt: 'Some people believe that technology has made our lives more complex. Others think it has simplified daily tasks and improved our quality of life. Discuss both views and give your own opinion.',
+            task1_text: task1Text,
+            task2_text: task2Text,
+            task1_word_count: wordCount1,
+            task2_word_count: wordCount2,
+            time_spent_seconds: 3600 - timeLeft
+          })
+        });
       }
     } catch (err) {
       console.error(`Failed to submit phase ${currentPhase}:`, err);
+    }
+
+    // Always transition to next phase
+    const phases: ExamPhase[] = ['listening', 'reading', 'writing', 'speaking'];
+    const currentIndex = phases.indexOf(currentPhase);
+    if (currentIndex < phases.length - 1) {
+      setCurrentPhase(phases[currentIndex + 1]);
+      setCurrentQuestion(1);
+      setTimeLeft(phaseConfig[phases[currentIndex + 1]].duration);
+      setSpeakingQuestionIndex(0);
     }
   };
 
@@ -171,16 +170,29 @@ export function ExamSimulation({ onEndExam, userTier = 'free', availableCredits 
 
   const handleAIReview = async () => {
     setShowReviewModal(false);
+    
+    // Try to trigger AI review for speaking if we have a submission
+    if (speakingSubmissionId) {
+      try {
+        await apiCall(`/speaking/${speakingSubmissionId}/review/ai`, { method: 'POST' });
+      } catch (err) {
+        console.warn('Speaking AI review skipped:', err);
+      }
+    }
+
+    // Try exam complete endpoint
     try {
       if (examId) {
         const response = await apiCall(`/exam/${examId}/complete`, { method: 'POST' });
-        console.log("Exam Completed & Graded:", response.results);
+        console.log('Exam Completed & Graded:', response.results);
         onEndExam(response.results);
         return;
       }
     } catch (error) {
-      console.error("Failed to complete exam:", error);
+      console.warn('Exam complete endpoint not available:', error);
     }
+    
+    // Fallback: exit with null results if /complete isn't deployed yet
     onEndExam(null);
   };
 

@@ -3,17 +3,16 @@ import { apiCall } from './lib/api';
 import { HomeScreen } from './components/HomeScreen';
 import { WritingModule } from './components/WritingModule';
 import { SpeakingSimulation } from './components/SpeakingSimulation';
-import { CommunityScreen } from './components/CommunityScreen';
+import CommunityScreen from './components/CommunityScreen';
 import { ProfileScreen } from './components/ProfileScreen';
 import { TopicSelection } from './components/TopicSelection';
 import { SimulationResults } from './components/SimulationResults';
-import { CommunityPostDetail } from './components/CommunityPostDetail';
 import { ExamSimulation } from './components/ExamSimulation';
 import { GrammarPractice } from './components/GrammarPractice';
 import { BottomNav } from './components/BottomNav';
 import { AuthScreen, UserProfile } from './components/AuthScreen';
 
-type Screen = 'home' | 'practice' | 'speaking' | 'community' | 'profile' | 'topicSelection' | 'simulationResults' | 'postDetail' | 'examSimulation' | 'grammarPractice';
+type Screen = 'home' | 'practice' | 'speaking' | 'community' | 'profile' | 'topicSelection' | 'simulationResults' | 'examSimulation' | 'grammarPractice';
 type ModuleType = 'writing' | 'speaking' | null;
 
 export default function App() {
@@ -26,7 +25,7 @@ export default function App() {
   const [examResults, setExamResults] = useState<any>(null);
   const [userTier, setUserTier] = useState<'free' | 'premium'>('free');
   const [availableCredits, setAvailableCredits] = useState(0);
-  const [selectedPostId, setSelectedPostId] = useState<string | null>(null);
+
 
   // Phase 1 testing: Check if backend is alive
   useEffect(() => {
@@ -96,27 +95,12 @@ export default function App() {
     refreshProfile(); // Sync credits after exam
   };
 
-  const handleViewPost = (postId: string) => {
-    setSelectedPostId(postId);
-    setActiveScreen('postDetail');
-  };
 
-  const handleBackFromPost = () => {
-    setActiveScreen('community');
-  };
-
-  const handleTryTestFromPost = (topicId: string) => {
-    setSelectedModule('writing');
-    setActiveScreen('topicSelection');
-  };
 
   // Determine which nav item should be active
   const getActiveNavScreen = () => {
     if (activeScreen === 'topicSelection') {
       return selectedModule === 'writing' ? 'practice' : 'speaking';
-    }
-    if (activeScreen === 'postDetail') {
-      return 'community';
     }
     if (activeScreen === 'simulationResults' || activeScreen === 'examSimulation') {
       return 'home';
@@ -126,7 +110,6 @@ export default function App() {
 
   // Determine if bottom nav should be hidden
   const shouldHideBottomNav = activeScreen === 'simulationResults' ||
-    activeScreen === 'postDetail' ||
     activeScreen === 'examSimulation';
 
   const renderScreen = () => {
@@ -141,13 +124,11 @@ export default function App() {
         case 'speaking':
           return <SpeakingSimulation userTier={userTier} availableCredits={availableCredits} topicId={selectedTopic?.id || null} topicName={selectedTopic?.name || null} onBack={() => setActiveScreen('topicSelection')} onCreditUpdate={refreshProfile} />;
         case 'community':
-          return <CommunityScreen onViewPost={handleViewPost} />;
+          return <CommunityScreen />;
         case 'profile':
           return <ProfileScreen userProfile={userProfile} userStats={userStats} userTier={userTier} availableCredits={availableCredits} onNavigateToWeaknessFix={(weaknessId) => setActiveScreen('grammarPractice')} />;
         case 'simulationResults':
           return <SimulationResults userTier={userTier} examResults={examResults} onGoHome={() => setActiveScreen('home')} />;
-        case 'postDetail':
-          return <CommunityPostDetail onBack={handleBackFromPost} onTryTest={handleTryTestFromPost} />;
         case 'examSimulation':
           return <ExamSimulation onEndExam={handleEndExam} userTier={userTier} availableCredits={availableCredits} />;
         case 'grammarPractice':
