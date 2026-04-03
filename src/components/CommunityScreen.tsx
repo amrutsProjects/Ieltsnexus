@@ -1,233 +1,155 @@
-import { useState, useEffect } from 'react';
-import { Card } from './Card';
-import { Heart, MessageCircle, CheckCircle, Loader2 } from 'lucide-react';
-import { PrimaryButton } from './PrimaryButton';
+import React, { useState, useEffect } from 'react';
 import { apiCall } from '../lib/api';
+import { Heart, MessageSquare, Flame, Award, CheckCircle } from 'lucide-react';
+import CommunityPostDetail from './CommunityPostDetail';
 
-export interface CommunityPost {
-  id: string;
-  author: string;
-  isPremium: boolean;
-  isVerified: boolean;
-  time: string;
-  title: string;
-  score: number | null; // Note: Score can be null
-  essayPreview: string;
-  likes: number;
-  comments: number;
-  isLiked?: boolean;
-}
+export default function CommunityScreen() {
+  const [posts, setPosts] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [filter, setFilter] = useState<'trending' | 'band8plus' | 'human_verified'>('trending');
+  const [selectedPostId, setSelectedPostId] = useState<string | null>(null);
 
-interface CommunityScreenProps {
-  onViewPost?: (postId: string) => void;
-}
-
-// FALLBACK DATA (Golden Rule)
-const DEFAULT_POSTS: CommunityPost[] = [
-  {
-    id: '1',
-    author: 'Sarah Chen',
-    isPremium: true,
-    isVerified: true,
-    time: '2h ago',
-    title: 'Writing Task 2: Environmental Policy',
-    score: 7.5,
-    essayPreview: 'Climate change is one of the most pressing issues facing our world today. Many people believes that individual actions...',
-    likes: 42,
-    comments: 12,
-  },
-  {
-    id: '2',
-    author: 'Michael Torres',
-    isPremium: true,
-    isVerified: false,
-    time: '5h ago',
-    title: 'Writing Task 2: Technology in Education',
-    score: 8.0,
-    essayPreview: 'In recent years, technology has transformed the way students learn. Some argue that traditional teaching methods...',
-    likes: 67,
-    comments: 23,
-  }
-];
-
-export function CommunityScreen({ onViewPost }: CommunityScreenProps) {
-  const [posts, setPosts] = useState<CommunityPost[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [activeFilter, setActiveFilter] = useState('trending');
-
-  const filters = [
-    { id: 'trending', label: 'Trending', style: '' },
-    { id: 'band8', label: 'Band 8+ Only', style: 'bg-gradient-to-r from-yellow-400 to-yellow-600 text-white border-transparent' },
-    { id: 'verified', label: 'Human Verified', style: 'bg-[#4F46E5] text-white border-transparent' },
-  ];
-
-  // Fetch posts from backend
   useEffect(() => {
-    const fetchPosts = async () => {
-      try {
-        setIsLoading(true);
-        // Map activeFilter to correct query params
-        const queryFilter = activeFilter === 'band8' ? 'band8plus' : activeFilter === 'verified' ? 'human_verified' : 'trending';
+    fetchFeed();
+  }, [filter]);
 
-        const response = await apiCall(`/community/posts?filter=${queryFilter}`);
+  const fetchFeed = async () => {
+    try {
+      setLoading(true);
+      // Maps to backend query parameters
+      const data = await apiCall(`/community/posts?filter=${filter}`);
+      setPosts(data.posts || []);
+    } catch (err) {
+      console.error('Failed to fetch community feed:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
-        const mappedPosts = response.posts.map((p: any) => ({
-          id: p.id,
-          author: p.author?.name || null,
-          isPremium: p.author?.is_premium || false,
-          isVerified: p.is_human_verified || false,
-          time: new Date(p.created_at).toLocaleDateString(),
-          title: p.title || 'Untitled',
-          score: p.band_score,
-          essayPreview: p.essay_preview || '',
-          likes: p.likes_count || 0,
-          comments: p.comments_count || 0,
-          isLiked: p.is_liked || false
-        }));
+  const toggleLike = async (e: React.MouseEvent, postId: string, currentIndex: number) => {
+    e.stopPropagation(); // Prevent opening the post details
 
-        setPosts(mappedPosts.length > 0 ? mappedPosts : DEFAULT_POSTS);
-      } catch (error) {
-        console.error("Failed to load posts, falling back to prototype data", error);
-        setPosts(DEFAULT_POSTS);
-      } finally {
-        setIsLoading(false);
-      }
-    };
+    // Optimistic UI Update
+    const newPosts = [...posts];
+    const post = newPosts[currentIndex];
+    const wasLiked = post.is_liked;
 
-    fetchPosts();
-  }, [activeFilter]);
-
-  // Optimistic Like
-  const handleLike = async (postId: string) => {
-    setPosts(current => current.map(p => {
-      if (p.id === postId) {
-        const isCurrentlyLiked = p.isLiked;
-        return {
-          ...p,
-          likes: isCurrentlyLiked ? p.likes - 1 : p.likes + 1,
-          isLiked: !isCurrentlyLiked
-        };
-      }
-      return p;
-    }));
+    post.is_liked = !wasLiked;
+    post.likes_count += wasLiked ? -1 : 1;
+    setPosts(newPosts);
 
     try {
       await apiCall(`/community/posts/${postId}/like`, { method: 'POST' });
     } catch (error) {
-      console.error("Like failed, reverting UI");
-      // Revert if API fails
-      setPosts(current => current.map(p => {
-        if (p.id === postId) {
-          const isCurrentlyLiked = p.isLiked;
-          return {
-            ...p,
-            likes: isCurrentlyLiked ? p.likes - 1 : p.likes + 1,
-            isLiked: !isCurrentlyLiked
-          };
-        }
-        return p;
-      }));
+      // Revert on failure
+      post.is_liked = wasLiked;
+      post.likes_count += wasLiked ? 1 : -1;
+      setPosts([...newPosts]);
     }
   };
 
-  return (
-    <div className="min-h-screen bg-[#F8FAFC] pb-24">
-      {/* Header */}
-      <div className="px-6 pt-8 pb-6">
-        <h2 className="text-3xl font-bold text-gray-900">Community Results</h2>
-        <p className="text-gray-600 mt-1">Learn from high-scoring essays</p>
-      </div>
+  // If a post is selected, render the detail view instead of the feed
+  if (selectedPostId) {
+    return <CommunityPostDetail postId={selectedPostId} onBack={() => setSelectedPostId(null)} />;
+  }
 
-      {/* Filters */}
-      <div className="px-6 mb-6">
-        <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
-          {filters.map((filter) => (
-            <button
-              key={filter.id}
-              onClick={() => setActiveFilter(filter.id)}
-              className={`flex-shrink-0 px-4 py-2 rounded-full text-sm font-semibold transition-all border ${activeFilter === filter.id
-                  ? filter.style || 'bg-[#4F46E5] text-white border-transparent'
-                  : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50'
-                }`}
-            >
-              {filter.label}
-              {filter.id === 'verified' && <CheckCircle className="inline-block w-4 h-4 ml-1" />}
-            </button>
-          ))}
+  return (
+    <div className="flex flex-col h-full bg-gray-50 pb-24">
+      {/* Header & Filters */}
+      <div className="bg-white pt-12 pb-4 px-4 shadow-sm border-b border-gray-100 sticky top-0 z-10">
+        <h1 className="text-2xl font-bold text-gray-900 mb-4">Community</h1>
+        <div className="flex space-x-2 overflow-x-auto hide-scrollbar pb-1">
+          <button
+            onClick={() => setFilter('trending')}
+            className={`flex items-center px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-colors ${filter === 'trending' ? 'bg-indigo-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
+          >
+            <Flame className="w-4 h-4 mr-2" /> Trending
+          </button>
+          <button
+            onClick={() => setFilter('band8plus')}
+            className={`flex items-center px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-colors ${filter === 'band8plus' ? 'bg-indigo-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
+          >
+            <Award className="w-4 h-4 mr-2" /> Band 8.0+
+          </button>
+          <button
+            onClick={() => setFilter('human_verified')}
+            className={`flex items-center px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-colors ${filter === 'human_verified' ? 'bg-emerald-500 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
+          >
+            <CheckCircle className="w-4 h-4 mr-2" /> Verified
+          </button>
         </div>
       </div>
 
-      {/* Posts Feed */}
-      <div className="px-6 space-y-4">
-        {isLoading ? (
-          <div className="flex justify-center py-10">
-            <Loader2 className="w-8 h-8 text-[#4F46E5] animate-spin" />
-          </div>
-        ) : posts.map((post) => (
-          <Card key={post.id}>
-            <div className="space-y-4">
-              {/* Author Info */}
-              <div className="flex items-start justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 rounded-full bg-gradient-to-br from-[#4F46E5] to-[#7C3AED] flex items-center justify-center text-white font-bold uppercase">
-                    {/* Safe fallback for avatar initials */}
-                    {post.author ? post.author.split(' ').map((n: string) => n[0]).join('').substring(0, 2) : 'U'}
-                  </div>
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <span className="font-semibold text-gray-900">{post.author || 'Anonymous User'}</span>
-                      {post.isPremium && (
-                        <span className="px-2 py-0.5 rounded-full bg-gradient-to-r from-yellow-400 to-yellow-600 text-white text-xs font-bold">
-                          Premium
-                        </span>
-                      )}
-                      {post.isVerified && <CheckCircle className="w-4 h-4 text-[#10B981]" fill="#10B981" />}
-                    </div>
-                    <span className="text-sm text-gray-500">{post.time}</span>
-                  </div>
-                </div>
-
-                {/* Safe fallback for score color and formatting */}
-                <div className={`w-16 h-16 rounded-2xl flex items-center justify-center font-bold text-2xl ${(post.score || 0) >= 8.0 ? 'bg-gradient-to-br from-[#10B981] to-[#059669] text-white'
-                    : (post.score || 0) >= 7.0 ? 'bg-gradient-to-br from-[#4F46E5] to-[#7C3AED] text-white'
-                      : 'bg-gradient-to-br from-gray-400 to-gray-600 text-white'
-                  }`}>
-                  {post.score != null ? post.score.toFixed(1) : 'N/A'}
-                </div>
+      {/* Feed */}
+      <div className="p-4 space-y-4 overflow-y-auto">
+        {loading ? (
+          // Skeleton Loading States
+          [1, 2, 3].map(i => (
+            <div key={i} className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 animate-pulse">
+              <div className="flex justify-between mb-4">
+                <div className="h-4 bg-gray-200 rounded w-1/3"></div>
+                <div className="h-6 bg-gray-200 rounded-full w-12"></div>
               </div>
-
-              <h3 className="font-bold text-lg text-gray-900">{post.title}</h3>
-
-              <div className="font-mono text-sm text-gray-700 leading-relaxed bg-gray-50 p-3 rounded-lg line-clamp-3">
-                {post.essayPreview}
-              </div>
-
-              {/* Actions */}
-              <div className="flex items-center justify-between pt-2 border-t border-gray-100">
-                <div className="flex items-center gap-4">
-                  <button
-                    onClick={() => handleLike(post.id)}
-                    className={`flex items-center gap-2 transition-colors ${post.isLiked ? 'text-red-500' : 'text-gray-600 hover:text-red-500'}`}
-                  >
-                    <Heart className={`w-5 h-5 ${post.isLiked ? 'fill-current' : ''}`} />
-                    <span className="text-sm font-semibold">{post.likes}</span>
-                  </button>
-                  <button
-                    onClick={() => onViewPost?.(post.id)}
-                    className="flex items-center gap-2 text-gray-600 hover:text-[#4F46E5] transition-colors"
-                  >
-                    <MessageCircle className="w-5 h-5" />
-                    <span className="text-sm font-semibold">{post.comments}</span>
-                  </button>
-                </div>
-
-                <PrimaryButton variant="secondary" className="h-10 px-4">
-                  Try This Test
-                </PrimaryButton>
+              <div className="space-y-2 mb-4">
+                <div className="h-3 bg-gray-200 rounded w-full"></div>
+                <div className="h-3 bg-gray-200 rounded w-5/6"></div>
+                <div className="h-3 bg-gray-200 rounded w-4/6"></div>
               </div>
             </div>
-          </Card>
-        ))}
+          ))
+        ) : posts.length === 0 ? (
+          <div className="text-center py-10 text-gray-500">
+            No posts found for this filter.
+          </div>
+        ) : (
+          posts.map((post, index) => (
+            <div
+              key={post.id}
+              onClick={() => setSelectedPostId(post.id)}
+              className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 active:scale-[0.98] transition-transform cursor-pointer"
+            >
+              <div className="flex justify-between items-start mb-3">
+                <div>
+                  <h3 className="font-semibold text-gray-900 line-clamp-1">{post.title}</h3>
+                  <p className="text-xs text-gray-500 mt-1">by {post.author?.name || 'Anonymous'}</p>
+                </div>
+                <div className="flex flex-col items-end">
+                  <span className="text-xl font-bold text-indigo-600 bg-indigo-50 px-2 py-1 rounded-lg">
+                    {post.band_score}
+                  </span>
+                  {post.is_human_verified && (
+                    <span className="text-[10px] uppercase font-bold text-emerald-600 mt-1 flex items-center">
+                      <CheckCircle className="w-3 h-3 mr-1" /> Verified
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              <p className="text-gray-600 text-sm line-clamp-3 mb-4 leading-relaxed">
+                {post.essay_preview || "Essay preview unavailable..."}
+              </p>
+
+              <div className="flex items-center justify-between pt-3 border-t border-gray-50">
+                <div className="flex items-center space-x-4">
+                  <button
+                    onClick={(e) => toggleLike(e, post.id, index)}
+                    className="flex items-center space-x-1.5 text-gray-400 hover:text-rose-500 transition-colors"
+                  >
+                    <Heart className={`w-5 h-5 ${post.is_liked ? 'fill-rose-500 text-rose-500' : ''}`} />
+                    <span className="text-sm font-medium">{post.likes_count}</span>
+                  </button>
+                  <div className="flex items-center space-x-1.5 text-gray-400">
+                    <MessageSquare className="w-5 h-5" />
+                    <span className="text-sm font-medium">{post.comments_count}</span>
+                  </div>
+                </div>
+                <span className="text-xs text-gray-400 font-medium bg-gray-100 px-2.5 py-1 rounded-full">
+                  {post.topic?.name || 'General'}
+                </span>
+              </div>
+            </div>
+          ))
+        )}
       </div>
     </div>
   );
