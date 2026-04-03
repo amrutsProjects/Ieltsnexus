@@ -134,6 +134,7 @@ CREATE TABLE topics (
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+
 -- Seed data
 INSERT INTO topics (id, name, emoji, frequency) VALUES
   ('environment', 'Environment', '🌍', 'High'),
